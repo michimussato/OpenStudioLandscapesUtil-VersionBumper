@@ -255,7 +255,9 @@ def parse_args(args):
 
     _formatter = argparse.ArgumentDefaultsHelpFormatter
 
-    main_parser = argparse.ArgumentParser(description="Just a Fibonacci demonstration")
+    main_parser = argparse.ArgumentParser(description="A Command Line "
+                                                      "Utility for version bumping "
+                                                      "of dependencies.")
     main_parser.add_argument(
         "--version",
         action="version",
