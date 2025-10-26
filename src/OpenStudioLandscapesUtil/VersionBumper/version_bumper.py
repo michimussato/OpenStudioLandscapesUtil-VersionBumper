@@ -22,6 +22,7 @@ References:
 
 import argparse
 import logging
+import pathlib
 import sys
 
 from OpenStudioLandscapesUtil.VersionBumper import __version__
@@ -72,14 +73,17 @@ def parse_args(args):
     Returns:
       :obj:`argparse.Namespace`: command line parameters namespace
     """
-    parser = argparse.ArgumentParser(description="Just a Fibonacci demonstration")
-    parser.add_argument(
+
+    _formatter = argparse.ArgumentDefaultsHelpFormatter
+
+    main_parser = argparse.ArgumentParser(description="Just a Fibonacci demonstration")
+    main_parser.add_argument(
         "--version",
         action="version",
         version=f"OpenStudioLandscapesUtil-VersionBumper {__version__}",
     )
-    parser.add_argument(dest="n", help="n-th Fibonacci number", type=int, metavar="INT")
-    parser.add_argument(
+    main_parser.add_argument(dest="n", help="n-th Fibonacci number", type=int, metavar="INT")
+    main_parser.add_argument(
         "-v",
         "--verbose",
         dest="loglevel",
@@ -87,7 +91,7 @@ def parse_args(args):
         action="store_const",
         const=logging.INFO,
     )
-    parser.add_argument(
+    main_parser.add_argument(
         "-vv",
         "--very-verbose",
         dest="loglevel",
@@ -95,7 +99,63 @@ def parse_args(args):
         action="store_const",
         const=logging.DEBUG,
     )
-    return parser.parse_args(args)
+
+
+
+
+    main_parser.add_argument(
+        "--old-version",
+        # "-h",
+        dest="old_version",
+        required=True,
+        default=None,
+        help="The version str to search for, "
+             "i.e. `v1.2.3-rc1`.",
+        metavar="OLD_VERSION",
+        type=str,
+    )
+
+    main_parser.add_argument(
+        "--new-version",
+        # "-h",
+        dest="new_version",
+        required=True,
+        default=None,
+        help="The version str to apply, "
+             "i.e. `v1.2.3-rc1`.",
+        metavar="NEW_VERSION",
+        type=str,
+    )
+
+
+
+    base_subparsers = main_parser.add_subparsers(
+        dest="command",
+    )
+
+    ####################################################################################################################
+    # PREPARE
+
+    base_subparser_single_file = base_subparsers.add_parser(
+        name="single-file",
+        formatter_class=_formatter,
+    )
+
+    base_subparser_single_file.add_argument(
+        "--file",
+        "-f",
+        dest="tar_file",
+        required=True,
+        # Todo
+        #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
+        help="Full path to the file to be processed.",
+        metavar="TAR_FILE",
+        type=pathlib.Path,
+    )
+
+    ####################################################################################################################
+
+    return main_parser.parse_args(args)
 
 
 def setup_logging(loglevel):
