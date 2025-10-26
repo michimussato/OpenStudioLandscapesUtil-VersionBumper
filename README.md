@@ -1,5 +1,6 @@
 <!-- TOC -->
 * [OpenStudioLandscapesUtil-VersionBumper](#openstudiolandscapesutil-versionbumper)
+  * [Usage](#usage)
 <!-- TOC -->
 
 ---
@@ -19,10 +20,9 @@ git push -u origin main
 ## Usage
 
 ```shell
-openstudiolandscapesutil-versionbumper --old-version v1.8.0-rc1 --new-version v1.9.0-rc1 --dry-run single-file --file /home/michael/git/repos/OpenStudioLandsc
-apes/pyproject.toml | grep v1.9.0
+openstudiolandscapesutil-versionbumper --old-version v1.8.0-rc1 --new-version v1.9.0-rc1 --dry-run single-file --file /home/michael/git/repos/OpenStudioLandscapes/pyproject.toml | grep v1.9.0
 ```
 
 ```shell
-
+openstudiolandscapesutil-versionbumper -vv --old-version v1.8.0-rc1 --new-version v1.9.0-rc1 --dry-run multi-file --root-path /home/michael/git/repos/OpenStudioLandscapes --pattern pyproject.toml | grep v1.9.0
 ```

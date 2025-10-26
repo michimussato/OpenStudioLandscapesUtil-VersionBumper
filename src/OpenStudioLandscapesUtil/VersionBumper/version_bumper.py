@@ -21,7 +21,6 @@ References:
 """
 
 import argparse
-import glob
 from pprint import pprint
 import logging
 import pathlib
@@ -44,15 +43,10 @@ _logger = logging.getLogger(__name__)
 # when using this Python module as a library.
 
 
-def recursive_serializer(obj):
-    # if hasattr(obj, '__dict__'):
-    #     return {
-    #         key: recursive_serializer(value)
-    #         for key, value in obj.__dict__.items()
-    #     }
+def _recursive_serializer(obj):
     if isinstance(obj, MutableMapping):
-        recursive_serializer(obj)
-    if isinstance(obj, pathlib.PosixPath):
+        _recursive_serializer(obj)
+    elif isinstance(obj, pathlib.PosixPath):
         return obj.as_posix()
     return obj
 
@@ -160,31 +154,43 @@ def eval_(
 
     elif args.processing_mode == "multi-file":
 
-        pattern = f"{args.root_path.as_posix()}/**/{args.pattern}"
+        _logger.debug(f"{args.root_path = }")
+        _logger.debug(f"{args.pattern = }")
 
-        _logger.debug(f"{pattern = }")
+        exclude = [
+            "__pycache__",
+            ".idea",
+            ".teleport",
+            ".bom",
+            ".pi-hole",
+            ".git",
+            "tests",
+            ".dagster",
+            ".pytest_cache",
+            ".payload",
+            ".harbor",
+            ".dagster-postgres",
+            ".portainer",
+            "obsidian",
+            ".venv",
+            ".nox",
+            ".landscapes"
+        ]
 
-        import os
-        import fnmatch
+        for f in args.root_path.glob(f"**/{args.pattern}"):
+            if bool(list(set(f.parts) & set(exclude))):
+                continue
 
-        path = 'C:/Users/sam/Desktop/file1'
+            print(f)
 
-        for dirpath, dirnames, files in os.walk(args.root_path):
-            if
-            for f in fnmatch.filter(files, args.pattern):
-                print(os.path.join(dirpath, f))
+            ret: MutableMapping[str, Union[pathlib.Path, str]] = bump_version(
+                old_version=args.old_version,
+                new_version=args.new_version,
+                file_path=f,
+                dry_run=args.dry_run,
+            )
 
-        configfiles = [
-            os.path.join(dirpath, f)
-                for dirpath, dirnames, files in os.walk(args.root_path)
-                for f in fnmatch.filter(files, args.pattern)]
-
-        # pprint(configfiles)
-
-        # file_list = list(glob.glob(
-        #     pattern,
-        #     recursive=True,
-        # ))
+            pprint(ret)
 
         # _logger.debug(f"{configfiles = }")
         #
@@ -255,7 +261,7 @@ def parse_args(args):
         action="version",
         version=f"OpenStudioLandscapesUtil-VersionBumper {__version__}",
     )
-    # main_parser.add_argument(dest="n", help="n-th Fibonacci number", type=int, metavar="INT")
+
     main_parser.add_argument(
         "-v",
         "--verbose",
@@ -272,9 +278,6 @@ def parse_args(args):
         action="store_const",
         const=logging.DEBUG,
     )
-
-
-
 
     main_parser.add_argument(
         "--old-version",
@@ -302,17 +305,12 @@ def parse_args(args):
 
     main_parser.add_argument(
         "--dry-run",
-        # "-h",
         dest="dry_run",
         action="store_true",
         required=False,
         default=False,
         help="Just print, don't do.",
-        # metavar="DRY_RUN",
-        # type=bool,
     )
-
-
 
     base_subparsers = main_parser.add_subparsers(
         dest="processing_mode",
@@ -403,9 +401,6 @@ def main(args):
     args: argparse.Namespace = parse_args(args)
     setup_logging(args.loglevel)
     eval_(args)
-    # _logger.debug("Starting crazy calculations...")
-    # print(f"The {args.n}-th Fibonacci number is {fib(args.n)}")
-    # _logger.info("Script ends here")
 
 
 def run():
