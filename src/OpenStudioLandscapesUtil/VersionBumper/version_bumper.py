@@ -21,9 +21,12 @@ References:
 """
 
 import argparse
+import glob
+from pprint import pprint
 import logging
 import pathlib
 import sys
+from typing import Union, MutableMapping
 
 from OpenStudioLandscapesUtil.VersionBumper import __version__
 
@@ -41,26 +44,196 @@ _logger = logging.getLogger(__name__)
 # when using this Python module as a library.
 
 
-def fib(n):
-    """Fibonacci example function
+def recursive_serializer(obj):
+    # if hasattr(obj, '__dict__'):
+    #     return {
+    #         key: recursive_serializer(value)
+    #         for key, value in obj.__dict__.items()
+    #     }
+    if isinstance(obj, MutableMapping):
+        recursive_serializer(obj)
+    if isinstance(obj, pathlib.PosixPath):
+        return obj.as_posix()
+    return obj
 
-    Args:
-      n (int): integer
 
-    Returns:
-      int: n-th Fibonacci number
-    """
-    assert n > 0
-    a, b = 1, 1
-    for _i in range(n - 1):
-        a, b = b, a + b
-    return a
+def bump_version(
+        old_version: str,
+        new_version: str,
+        file_path: pathlib.Path,
+        dry_run: bool,
+) -> MutableMapping[str, Union[pathlib.Path, str]]:
+    # Read in the file
+    with open(file_path, 'r') as fr:
+      file_data = fr.read()
+
+    # Replace the target string
+    file_data = file_data.replace(
+        old_version,
+        new_version,
+    )
+
+    # Write the file out again
+    if not dry_run:
+        with open(file_path, 'w') as fw:
+          fw.write(file_data)
+
+    return {
+        "file_path": file_path,
+        "file_data": file_data,
+    }
 
 
 # ---- CLI ----
 # The functions defined in this section are wrappers around the main Python
 # API allowing them to be called directly from the terminal as a CLI
 # executable/script.
+
+
+def eval_(
+        args: argparse.Namespace,
+) -> Union[pathlib.Path]:
+
+    _logger.debug(f"{args = }")
+
+    _logger.debug(f"{args.processing_mode = }")
+
+    # dotenv_ = args.dot_env
+    #
+    # if dotenv_ is not None:
+    #     dotenv_: pathlib.Path = args.dot_env.expanduser().resolve()
+    #     if not dotenv_.exists():
+    #         raise FileNotFoundError(f"{dotenv_.as_posix()} does not exist")
+    #
+    # load_dotenv(
+    #     dotenv_path=dotenv_,
+    #     verbose=True,
+    # )
+
+    if args.processing_mode == "single-file":
+        # _logger.debug(f"{args.processing_mode = }")
+
+        ret: MutableMapping[str, Union[pathlib.Path, str]] = bump_version(
+            old_version=args.old_version,
+            new_version=args.new_version,
+            file_path=args.file_path,
+            dry_run=args.dry_run,
+        )
+
+        pprint(ret)
+
+        # sys.stdout.write(
+        #     "%s" % json.dumps(
+        #         obj=ret,
+        #         default=recursive_serializer,
+        #         indent=4,
+        #         sort_keys=True,
+        #     )
+        # )
+
+
+
+        # if args.prepare_command == "download":
+        #     result: pathlib.Path = _cli_download(args)
+        #     _logger.debug(f"{result = }")
+        #     return result
+        #
+        # elif args.prepare_command == "extract":
+        #     result: pathlib.Path = _cli_extract(args)
+        #     _logger.debug(f"{result = }")
+        #     return result
+        #
+        # elif args.prepare_command == "configure":
+        #     if args.dry_run:
+        #         # from pprint import pprint
+        #         print(_configure(args))
+        #         return None
+        #     else:
+        #         result = _cli_configure(args)
+        #         _logger.debug(f"{result = }")
+        #         return result
+        #
+        # elif args.prepare_command == "install":
+        #     result: subprocess.CompletedProcess = _cli_install(args)
+        #     _logger.debug(f"{result = }")
+        #     return result
+
+    elif args.processing_mode == "multi-file":
+
+        pattern = f"{args.root_path.as_posix()}/**/{args.pattern}"
+
+        _logger.debug(f"{pattern = }")
+
+        import os
+        import fnmatch
+
+        path = 'C:/Users/sam/Desktop/file1'
+
+        for dirpath, dirnames, files in os.walk(args.root_path):
+            if
+            for f in fnmatch.filter(files, args.pattern):
+                print(os.path.join(dirpath, f))
+
+        configfiles = [
+            os.path.join(dirpath, f)
+                for dirpath, dirnames, files in os.walk(args.root_path)
+                for f in fnmatch.filter(files, args.pattern)]
+
+        # pprint(configfiles)
+
+        # file_list = list(glob.glob(
+        #     pattern,
+        #     recursive=True,
+        # ))
+
+        # _logger.debug(f"{configfiles = }")
+        #
+        # for file_path in configfiles:
+        #
+        #     ret: MutableMapping[str, Union[pathlib.Path, str]] = bump_version(
+        #         old_version=args.old_version,
+        #         new_version=args.new_version,
+        #         file_path=pathlib.Path(file_path),
+        #         dry_run=args.dry_run,
+        #     )
+        #
+        #     # pprint(ret)
+
+        # pass
+        # _logger.debug(f"{args.systemd_command = }")
+
+        # if args.systemd_command == "install":
+        #     result: list = _cli_systemd_install(args)
+        #     _logger.debug(f"{result = }")
+        #     return result
+        #
+        # elif args.systemd_command == "uninstall":
+        #     result: list = _cli_systemd_uninstall(args)
+        #     _logger.debug(f"{result = }")
+        #     return result
+        #
+        # elif args.systemd_command == "status":
+        #     result: list = _cli_systemd_status()
+        #     _logger.debug(f"{result = }")
+        #     return result
+        #
+        # elif args.systemd_command == "journalctl":
+        #     result: list = _cli_systemd_journalctl()
+        #     _logger.debug(f"{result = }")
+        #     return result
+
+    # elif args.command == "project":
+    #     _logger.debug(f"{args.project_command = }")
+    #
+    #     if args.project_command == "create":
+    #         result: list = _cli_project_create(args)
+    #         _logger.debug(f"{result = }")
+    #         return result
+    #
+    #     if args.project_command == "delete":
+    #         result: list = _cli_project_delete(args)
+    #         _logger.debug(f"{result = }")
+    #         return result
 
 
 def parse_args(args):
@@ -82,7 +255,7 @@ def parse_args(args):
         action="version",
         version=f"OpenStudioLandscapesUtil-VersionBumper {__version__}",
     )
-    main_parser.add_argument(dest="n", help="n-th Fibonacci number", type=int, metavar="INT")
+    # main_parser.add_argument(dest="n", help="n-th Fibonacci number", type=int, metavar="INT")
     main_parser.add_argument(
         "-v",
         "--verbose",
@@ -127,14 +300,26 @@ def parse_args(args):
         type=str,
     )
 
+    main_parser.add_argument(
+        "--dry-run",
+        # "-h",
+        dest="dry_run",
+        action="store_true",
+        required=False,
+        default=False,
+        help="Just print, don't do.",
+        # metavar="DRY_RUN",
+        # type=bool,
+    )
+
 
 
     base_subparsers = main_parser.add_subparsers(
-        dest="command",
+        dest="processing_mode",
     )
 
     ####################################################################################################################
-    # PREPARE
+    # SINGLE-FILE
 
     base_subparser_single_file = base_subparsers.add_parser(
         name="single-file",
@@ -142,15 +327,50 @@ def parse_args(args):
     )
 
     base_subparser_single_file.add_argument(
-        "--file",
-        "-f",
-        dest="tar_file",
+        "--file-path",
+        # "-f",
+        dest="file_path",
         required=True,
         # Todo
         #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
         help="Full path to the file to be processed.",
-        metavar="TAR_FILE",
+        metavar="FILE_PATH",
         type=pathlib.Path,
+    )
+
+    ####################################################################################################################
+
+
+    ####################################################################################################################
+    # MULTI-FILE
+
+    base_subparser_single_file = base_subparsers.add_parser(
+        name="multi-file",
+        formatter_class=_formatter,
+    )
+
+    base_subparser_single_file.add_argument(
+        "--root-path",
+        # "-f",
+        dest="root_path",
+        required=True,
+        # Todo
+        #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
+        help="Full path to the file to be processed.",
+        metavar="ROOT_PATH",
+        type=pathlib.Path,
+    )
+
+    base_subparser_single_file.add_argument(
+        "--pattern",
+        # "-f",
+        dest="pattern",
+        required=True,
+        # Todo
+        #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
+        help="Full path to the file to be processed.",
+        metavar="PATTERN",
+        type=str,
     )
 
     ####################################################################################################################
@@ -180,11 +400,12 @@ def main(args):
       args (List[str]): command line parameters as list of strings
           (for example  ``["--verbose", "42"]``).
     """
-    args = parse_args(args)
+    args: argparse.Namespace = parse_args(args)
     setup_logging(args.loglevel)
-    _logger.debug("Starting crazy calculations...")
-    print(f"The {args.n}-th Fibonacci number is {fib(args.n)}")
-    _logger.info("Script ends here")
+    eval_(args)
+    # _logger.debug("Starting crazy calculations...")
+    # print(f"The {args.n}-th Fibonacci number is {fib(args.n)}")
+    # _logger.info("Script ends here")
 
 
 def run():

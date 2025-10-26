@@ -15,3 +15,14 @@ git remote add origin https://github.com/michimussato/OpenStudioLandscapesUtil-V
 git branch -M main
 git push -u origin main
 ```
+
+## Usage
+
+```shell
+openstudiolandscapesutil-versionbumper --old-version v1.8.0-rc1 --new-version v1.9.0-rc1 --dry-run single-file --file /home/michael/git/repos/OpenStudioLandsc
+apes/pyproject.toml | grep v1.9.0
+```
+
+```shell
+
+```
