@@ -4,10 +4,9 @@
   * [Git](#git)
   * [Usage](#usage)
     * [Example](#example)
-      * [`single-file` Mode](#single-file-mode)
-      * [`multi-file` Mode](#multi-file-mode)
-        * [`pyproject.toml`](#pyprojecttoml)
-        * [`README.md`](#readmemd)
+      * [`convert`](#convert)
+      * [`jsons-to-toml`](#jsons-to-toml)
+      * [`compare-tomls`](#compare-tomls)
 <!-- TOC -->
 
 ---
@@ -45,43 +44,47 @@ git push -u origin main
 
 ```
 $ openstudiolandscapesutil-versionbumper --help
-usage: openstudiolandscapesutil-versionbumper [-h] [--version] [-v] [-vv] --old-version OLD_VERSION --new-version NEW_VERSION [--dry-run] {single-file,multi-file} ...
+usage: openstudiolandscapesutil-versionbumper [-h] [--version] [-v] [-vv] {convert,jsons-to-toml,compare-tomls} ...
 
 A Command Line Utility for version bumping of dependencies.
 
 positional arguments:
-  {single-file,multi-file}
+  {convert,jsons-to-toml,compare-tomls}
 
 options:
   -h, --help            show this help message and exit
   --version             show program's version number and exit
   -v, --verbose         set loglevel to INFO
   -vv, --very-verbose   set loglevel to DEBUG
-  --old-version OLD_VERSION
-                        The version str to search for, i.e. `v1.2.3-rc1`.
-  --new-version NEW_VERSION
-                        The version str to apply, i.e. `v1.2.3-rc1`.
-  --dry-run             Just print, don't do
 ```
 
 ### Example
 
-#### `single-file` Mode
+#### `convert`
+
+From `toml` to `json`
 
 ```shell
-openstudiolandscapesutil-versionbumper --old-version v1.8.0-rc1 --new-version v1.9.0-rc1 --dry-run single-file --file /home/michael/git/repos/OpenStudioLandscapes/pyproject.toml | grep v1.9.0
+openstudiolandscapesutil-versionbumper convert --toml-in /home/michael/git/repos/OpenStudioLandscapes/pyproject.toml
 ```
 
-#### `multi-file` Mode
-
-##### `pyproject.toml`
-
 ```shell
-openstudiolandscapesutil-versionbumper -vv --old-version v1.8.0-rc1 --new-version v1.9.0-rc1 --dry-run multi-file --root-path /home/michael/git/repos/OpenStudioLandscapes --pattern pyproject.toml | grep v1.9.0
+for toml in .features/*/pyproject.toml; do 
+  echo $(pwd)/${toml};
+  openstudiolandscapesutil-versionbumper convert --toml-in $(pwd)/${toml}
+done
 ```
 
-##### `README.md`
+#### `jsons-to-toml`
+
+Write layered `json` files (Python `ChainMap()` to `toml`
 
 ```shell
-openstudiolandscapesutil-versionbumper -vv --old-version v1.8.0-rc1 --new-version v1.9.0-rc1 --dry-run multi-file --root-path /home/michael/git/repos/OpenStudioLandscapes --pattern README.md | grep v1.9.0
+openstudiolandscapesutil-versionbumper jsons-to-toml --root-json /home/michael/git/repos/OpenStudioLandscapes/utils/pyproject/pyproject.toml__OpenStudioLandscapes-Common.json --override-json /home/michael/git/repos/OpenStudioLandscapes/.features/OpenStudioLandscapes-Ayon/pyproject.json --toml-out /home/michael/git/repos/OpenStudioLandscapes/.features/OpenStudioLandscapes-Ayon/pyproject_new.toml
+```
+
+#### `compare-tomls`
+
+```shell
+openstudiolandscapesutil-versionbumper compare-tomls --toml-1 /home/michael/git/repos/OpenStudioLandscapes/pyproject.toml --toml-2 /home/michael/git/repos/OpenStudioLandscapes/pyproject2.toml
 ```

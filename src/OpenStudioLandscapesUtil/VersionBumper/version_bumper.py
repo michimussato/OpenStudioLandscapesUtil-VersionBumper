@@ -1,33 +1,26 @@
 """
-This is a skeleton file that can serve as a starting point for a Python
-console script. To run this script uncomment the following lines in the
-``[options.entry_points]`` section in ``setup.cfg``::
-
-    console_scripts =
-         fibonacci = VersionBumper.skeleton:run
-
-Then run ``pip install .`` (or ``pip install -e .`` for editable mode)
-which will install the command ``fibonacci`` inside your current environment.
-
-Besides console scripts, the header (i.e. until ``_logger``...) of this file can
-also be used as template for Python modules.
-
-Note:
-    This file can be renamed depending on your needs or safely removed if not needed.
-
-References:
-    - https://setuptools.pypa.io/en/latest/userguide/entry_point.html
-    - https://pip.pypa.io/en/stable/reference/pip_install
+References for pyproject.toml
+    - https://packaging.python.org/en/latest/specifications/pyproject-toml/
+    - https://xebia.com/blog/an-updated-guide-to-setuptools-and-pyproject-toml/
+    - https://devsjc.github.io/blog/20240627-the-complete-guide-to-pyproject-toml/
 """
 
 import argparse
+import json
+from collections import ChainMap
 from pprint import pprint
 import logging
 import pathlib
 import sys
 from typing import Union, MutableMapping
+from functools import reduce
+import tomli
+import tomli_w
+import deepdiff
 
+from docker_compose_graph.utils import *
 from OpenStudioLandscapesUtil.VersionBumper import __version__
+from OpenStudioLandscapesUtil.VersionBumper.formatter import AnsiColorFormatter
 
 __author__ = "Michael Mussato"
 __copyright__ = "Michael Mussato"
@@ -48,34 +41,86 @@ def _recursive_serializer(obj):
         _recursive_serializer(obj)
     elif isinstance(obj, pathlib.PosixPath):
         return obj.as_posix()
-    return obj
+    return str(obj)
 
 
-def bump_version(
-        old_version: str,
-        new_version: str,
-        file_path: pathlib.Path,
-        dry_run: bool,
-) -> MutableMapping[str, Union[pathlib.Path, str]]:
-    # Read in the file
-    with open(file_path, 'r') as fr:
-      file_data = fr.read()
+def convert_toml_to_json(
+        toml_in: pathlib.Path,
+        json_out: pathlib.Path = None,
+) -> pathlib.Path:
 
-    # Replace the target string
-    file_data = file_data.replace(
-        old_version,
-        new_version,
+    if json_out is None:
+        json_out = toml_in.with_suffix(".json")
+        _logger.info(f"No output file specified. Writing to {json_out.as_posix()}...")
+
+    json_out_edit = json_out.with_suffix(".edit.json")
+
+    with open(toml_in, "rb") as fr:
+        toml_data = tomli.load(fr)
+        _logger.debug(f"Loaded {toml_data}")
+
+    json_str = json.dumps(
+        toml_data,
+        indent=4,
+        sort_keys=True,
     )
 
-    # Write the file out again
-    if not dry_run:
-        with open(file_path, 'w') as fw:
-          fw.write(file_data)
+    with open(json_out, "w") as fw:
+        _logger.info(f"Writing {json_str}")
+        fw.write(json_str)
 
-    return {
-        "file_path": file_path,
-        "file_data": file_data,
-    }
+    with open(json_out_edit, "w") as fw:
+        _logger.info(f"Writing {json_str}")
+        fw.write(json_str)
+
+    return json_out
+
+
+def jsons_to_toml(
+        root_json: pathlib.Path,
+        override_json: pathlib.Path,
+        toml_out: pathlib.Path,
+) -> pathlib.Path:
+
+    with open(root_json) as fr:
+        _logger.debug(f"Reading {root_json.as_posix()}...")
+        root_dict = json.load(fr)
+        _logger.debug(f"Loaded {root_dict}")
+
+    with open(override_json) as fr:
+        _logger.debug(f"Reading {override_json.as_posix()}...")
+        override_dict = json.load(fr)
+        _logger.debug(f"Loaded {override_dict}")
+
+    chain = ChainMap(
+        override_dict,
+        root_dict,
+    )
+
+    merged = reduce(deep_merge, chain.maps)
+    _logger.debug(f"Merged chainmap: {json.dumps(merged, indent=4)}")
+
+    toml_str = tomli_w.dumps(merged)
+    _logger.debug(f"Converted TOML string: {toml_str}")
+
+    with open(toml_out, 'w') as fw:
+        _logger.debug(f"Writing {toml_out.as_posix()}")
+        fw.write(toml_str)
+
+    return toml_out
+
+
+def compare_tomls(
+        toml_1: pathlib.Path,
+        toml_2: pathlib.Path,
+):
+    with open(toml_1, "rb") as fr:
+        dict_1 = tomli.load(fr)
+
+    with open(toml_2, "rb") as fr:
+        dict_2 = tomli.load(fr)
+
+    pprint(deepdiff.DeepDiff(dict_1, dict_2))
 
 
 # ---- CLI ----
@@ -92,154 +137,36 @@ def eval_(
 
     _logger.debug(f"{args.processing_mode = }")
 
-    # dotenv_ = args.dot_env
-    #
-    # if dotenv_ is not None:
-    #     dotenv_: pathlib.Path = args.dot_env.expanduser().resolve()
-    #     if not dotenv_.exists():
-    #         raise FileNotFoundError(f"{dotenv_.as_posix()} does not exist")
-    #
-    # load_dotenv(
-    #     dotenv_path=dotenv_,
-    #     verbose=True,
-    # )
+    if args.processing_mode == "convert":
 
-    if args.processing_mode == "single-file":
-        # _logger.debug(f"{args.processing_mode = }")
-
-        ret: MutableMapping[str, Union[pathlib.Path, str]] = bump_version(
-            old_version=args.old_version,
-            new_version=args.new_version,
-            file_path=args.file_path,
-            dry_run=args.dry_run,
+        result: pathlib.Path = convert_toml_to_json(
+            toml_in=args.toml_in,
+            json_out=args.json_out,
         )
 
-        pprint(ret)
+        _logger.info(f"{result.as_posix() = }")
 
-        # sys.stdout.write(
-        #     "%s" % json.dumps(
-        #         obj=ret,
-        #         default=recursive_serializer,
-        #         indent=4,
-        #         sort_keys=True,
-        #     )
-        # )
+        return result
 
+    elif args.processing_mode == "jsons-to-toml":
 
+        result: pathlib.Path = jsons_to_toml(
+            root_json=args.root_json,
+            override_json=args.override_json,
+            toml_out=args.toml_out,
+        )
 
-        # if args.prepare_command == "download":
-        #     result: pathlib.Path = _cli_download(args)
-        #     _logger.debug(f"{result = }")
-        #     return result
-        #
-        # elif args.prepare_command == "extract":
-        #     result: pathlib.Path = _cli_extract(args)
-        #     _logger.debug(f"{result = }")
-        #     return result
-        #
-        # elif args.prepare_command == "configure":
-        #     if args.dry_run:
-        #         # from pprint import pprint
-        #         print(_configure(args))
-        #         return None
-        #     else:
-        #         result = _cli_configure(args)
-        #         _logger.debug(f"{result = }")
-        #         return result
-        #
-        # elif args.prepare_command == "install":
-        #     result: subprocess.CompletedProcess = _cli_install(args)
-        #     _logger.debug(f"{result = }")
-        #     return result
+        return result
 
-    elif args.processing_mode == "multi-file":
+    elif args.processing_mode == "compare-tomls":
 
-        _logger.debug(f"{args.root_path = }")
-        _logger.debug(f"{args.pattern = }")
+        _logger.debug(f"{args.toml_1 = }")
+        _logger.debug(f"{args.toml_2 = }")
 
-        exclude = [
-            "__pycache__",
-            ".idea",
-            ".teleport",
-            ".bom",
-            ".pi-hole",
-            ".git",
-            "tests",
-            ".dagster",
-            ".pytest_cache",
-            ".payload",
-            ".harbor",
-            ".dagster-postgres",
-            ".portainer",
-            "obsidian",
-            ".venv",
-            ".nox",
-            ".landscapes"
-        ]
-
-        for f in args.root_path.glob(f"**/{args.pattern}"):
-            if bool(list(set(f.parts) & set(exclude))):
-                continue
-
-            print(f)
-
-            ret: MutableMapping[str, Union[pathlib.Path, str]] = bump_version(
-                old_version=args.old_version,
-                new_version=args.new_version,
-                file_path=f,
-                dry_run=args.dry_run,
-            )
-
-            pprint(ret)
-
-        # _logger.debug(f"{configfiles = }")
-        #
-        # for file_path in configfiles:
-        #
-        #     ret: MutableMapping[str, Union[pathlib.Path, str]] = bump_version(
-        #         old_version=args.old_version,
-        #         new_version=args.new_version,
-        #         file_path=pathlib.Path(file_path),
-        #         dry_run=args.dry_run,
-        #     )
-        #
-        #     # pprint(ret)
-
-        # pass
-        # _logger.debug(f"{args.systemd_command = }")
-
-        # if args.systemd_command == "install":
-        #     result: list = _cli_systemd_install(args)
-        #     _logger.debug(f"{result = }")
-        #     return result
-        #
-        # elif args.systemd_command == "uninstall":
-        #     result: list = _cli_systemd_uninstall(args)
-        #     _logger.debug(f"{result = }")
-        #     return result
-        #
-        # elif args.systemd_command == "status":
-        #     result: list = _cli_systemd_status()
-        #     _logger.debug(f"{result = }")
-        #     return result
-        #
-        # elif args.systemd_command == "journalctl":
-        #     result: list = _cli_systemd_journalctl()
-        #     _logger.debug(f"{result = }")
-        #     return result
-
-    # elif args.command == "project":
-    #     _logger.debug(f"{args.project_command = }")
-    #
-    #     if args.project_command == "create":
-    #         result: list = _cli_project_create(args)
-    #         _logger.debug(f"{result = }")
-    #         return result
-    #
-    #     if args.project_command == "delete":
-    #         result: list = _cli_project_delete(args)
-    #         _logger.debug(f"{result = }")
-    #         return result
+        compare_tomls(
+            toml_1=args.toml_1,
+            toml_2=args.toml_2,
+        )
 
 
 def parse_args(args):
@@ -268,6 +195,7 @@ def parse_args(args):
         "-v",
         "--verbose",
         dest="loglevel",
+        default=logging.ERROR,
         help="set loglevel to INFO",
         action="store_const",
         const=logging.INFO,
@@ -281,60 +209,39 @@ def parse_args(args):
         const=logging.DEBUG,
     )
 
-    main_parser.add_argument(
-        "--old-version",
-        # "-h",
-        dest="old_version",
-        required=True,
-        default=None,
-        help="The version str to search for, "
-             "i.e. `v1.2.3-rc1`.",
-        metavar="OLD_VERSION",
-        type=str,
-    )
-
-    main_parser.add_argument(
-        "--new-version",
-        # "-h",
-        dest="new_version",
-        required=True,
-        default=None,
-        help="The version str to apply, "
-             "i.e. `v1.2.3-rc1`.",
-        metavar="NEW_VERSION",
-        type=str,
-    )
-
-    main_parser.add_argument(
-        "--dry-run",
-        dest="dry_run",
-        action="store_true",
-        required=False,
-        default=False,
-        help="Just print, don't do.",
-    )
-
     base_subparsers = main_parser.add_subparsers(
         dest="processing_mode",
     )
 
     ####################################################################################################################
-    # SINGLE-FILE
+    # CONVERT TOML TO JSON
 
     base_subparser_single_file = base_subparsers.add_parser(
-        name="single-file",
+        name="convert",
         formatter_class=_formatter,
     )
 
     base_subparser_single_file.add_argument(
-        "--file-path",
+        "--toml-in",
         # "-f",
-        dest="file_path",
+        dest="toml_in",
         required=True,
         # Todo
         #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
         help="Full path to the file to be processed.",
-        metavar="FILE_PATH",
+        metavar="TOML_IN",
+        type=pathlib.Path,
+    )
+
+    base_subparser_single_file.add_argument(
+        "--json-out",
+        # "-f",
+        dest="json_out",
+        required=False,
+        # Todo
+        #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
+        help="Full path to the file to be processed.",
+        metavar="JSON_OUT",
         type=pathlib.Path,
     )
 
@@ -342,35 +249,82 @@ def parse_args(args):
 
 
     ####################################################################################################################
-    # MULTI-FILE
+    # JSONS TO TOML
 
-    base_subparser_single_file = base_subparsers.add_parser(
-        name="multi-file",
+    base_subparser_chain_dicts = base_subparsers.add_parser(
+        name="jsons-to-toml",
         formatter_class=_formatter,
     )
 
-    base_subparser_single_file.add_argument(
-        "--root-path",
+    base_subparser_chain_dicts.add_argument(
+        "--root-json",
         # "-f",
-        dest="root_path",
+        dest="root_json",
         required=True,
         # Todo
         #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
-        help="Full path to the file to be processed.",
-        metavar="ROOT_PATH",
+        help="Full path to the root json.",
+        metavar="ROOT_JSON",
         type=pathlib.Path,
     )
 
-    base_subparser_single_file.add_argument(
-        "--pattern",
+    base_subparser_chain_dicts.add_argument(
+        "--override-json",
         # "-f",
-        dest="pattern",
+        dest="override_json",
         required=True,
         # Todo
         #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
-        help="Full path to the file to be processed.",
-        metavar="PATTERN",
-        type=str,
+        help="Full path to the json to override the root json.",
+        metavar="OVERRIDE_JSON",
+        type=pathlib.Path,
+    )
+
+    base_subparser_chain_dicts.add_argument(
+        "--toml-out",
+        # "-f",
+        dest="toml_out",
+        required=True,
+        # Todo
+        #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
+        help="Full path to the toml to be created.",
+        metavar="TOML_OUT",
+        type=pathlib.Path,
+    )
+
+    ####################################################################################################################
+
+
+    ####################################################################################################################
+    # COMPARE-TOMLS
+
+    base_subparser_compare_tomls = base_subparsers.add_parser(
+        name="compare-tomls",
+        formatter_class=_formatter,
+    )
+
+    base_subparser_compare_tomls.add_argument(
+        "--toml-1",
+        # "-f",
+        dest="toml_1",
+        required=True,
+        # Todo
+        #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
+        help="Full path to the 1st TOML.",
+        metavar="TOML_1",
+        type=pathlib.Path,
+    )
+
+    base_subparser_compare_tomls.add_argument(
+        "--toml-2",
+        # "-f",
+        dest="toml_2",
+        required=True,
+        # Todo
+        #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
+        help="Full path to the 2nd TOML.",
+        metavar="TOML_2",
+        type=pathlib.Path,
     )
 
     ####################################################################################################################
@@ -384,10 +338,13 @@ def setup_logging(loglevel):
     Args:
       loglevel (int): minimum loglevel for emitting messages
     """
-    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(message)s"
-    logging.basicConfig(
-        level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S"
-    )
+
+    handler = logging.StreamHandler()
+    handler.setLevel(loglevel)  # DEBUG INFO WARNING ERROR CRITICAL
+    formatter = AnsiColorFormatter('{asctime} | {levelname:<8s} | {name:<20s} | {message}', style='{')
+    handler.setFormatter(formatter)
+    _logger.addHandler(handler)
+    _logger.setLevel(logging.DEBUG)  # DEBUG INFO WARNING ERROR CRITICAL
 
 
 def main(args):

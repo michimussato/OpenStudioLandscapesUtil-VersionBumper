@@ -18,10 +18,11 @@ classifiers = [
 requires-python = ">=3.11"
 dependencies = [
     'importlib-metadata; python_version<"3.8"',
-    "snakemd",
-    "requests",
-    "pyyaml",
-    "dotenv",
+#    "snakemd",
+    "tomli",
+    "tomli-w",
+    "deepdiff[cli]",
+    "docker-compose-graph @ git+https://github.com/michimussato/docker-compose-graph.git"
 ]
 dynamic = ["version"]
 
