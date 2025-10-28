@@ -6,7 +6,7 @@ References for pyproject.toml
 """
 
 import argparse
-import json
+import yaml
 from collections import ChainMap
 from pprint import pprint
 import logging
@@ -44,67 +44,71 @@ def _recursive_serializer(obj):
     return str(obj)
 
 
-def convert_toml_to_json(
+def convert_toml_to_yaml(
         toml_in: pathlib.Path,
-        json_out: pathlib.Path = None,
+        yaml_out: pathlib.Path = None,
 ) -> pathlib.Path:
 
-    if json_out is None:
-        json_out = toml_in.with_suffix(".json")
-        _logger.info(f"No output file specified. Writing to {json_out.as_posix()}...")
+    if yaml_out is None:
+        yaml_out = toml_in.with_suffix(".yaml")
+        _logger.info(f"No output file specified. Writing to {yaml_out.as_posix()}...")
 
-    json_out_edit = json_out.with_suffix(".edit.json")
+    # yaml_out_edit = yaml_out.with_suffix(".edit.yaml")
 
     with open(toml_in, "rb") as fr:
         toml_data = tomli.load(fr)
         _logger.debug(f"Loaded {toml_data}")
 
-    json_str = json.dumps(
+    yaml_str = yaml.safe_dump(
         toml_data,
-        indent=4,
+        indent=2,
         sort_keys=True,
     )
 
-    with open(json_out, "w") as fw:
-        _logger.info(f"Writing {json_str}")
-        fw.write(json_str)
+    with open(yaml_out, "w") as fw:
+        _logger.info(f"Writing:\n{yaml_str}")
+        fw.write(yaml_str)
 
-    with open(json_out_edit, "w") as fw:
-        _logger.info(f"Writing {json_str}")
-        fw.write(json_str)
+    # with open(yaml_out_edit, "w") as fw:
+    #     _logger.info(f"Writing:\n{yaml_str}")
+    #     fw.write(yaml_str)
 
-    return json_out
+    return yaml_out
 
 
-def jsons_to_toml(
-        root_json: pathlib.Path,
-        override_json: pathlib.Path,
+def yamls_to_toml(
+        root_yaml: pathlib.Path,
+        override_yaml: list[pathlib.Path],
         toml_out: pathlib.Path,
 ) -> pathlib.Path:
 
-    with open(root_json) as fr:
-        _logger.debug(f"Reading {root_json.as_posix()}...")
-        root_dict = json.load(fr)
+    with open(root_yaml, "r") as fr:
+        _logger.debug(f"Reading {root_yaml.as_posix()}...")
+        root_dict = yaml.safe_load(stream=fr)
         _logger.debug(f"Loaded {root_dict}")
 
-    with open(override_json) as fr:
-        _logger.debug(f"Reading {override_json.as_posix()}...")
-        override_dict = json.load(fr)
-        _logger.debug(f"Loaded {override_dict}")
+    dicts = []
+
+    for f in reversed(override_yaml):
+        with open(f, "r") as fr:
+            _logger.debug(f"Reading {f.as_posix()}...")
+            override_dict = yaml.safe_load(stream=fr)
+            _logger.debug(f"Loaded {override_dict}")
+            dicts.append(override_dict)
 
     chain = ChainMap(
-        override_dict,
+        *dicts,
         root_dict,
     )
 
     merged = reduce(deep_merge, chain.maps)
-    _logger.debug(f"Merged chainmap: {json.dumps(merged, indent=4)}")
+    _logger.debug(f"Merged chainmap::\n{yaml.safe_dump(merged, indent=2)}")
 
     toml_str = tomli_w.dumps(merged)
     _logger.debug(f"Converted TOML string: {toml_str}")
 
     with open(toml_out, 'w') as fw:
-        _logger.debug(f"Writing {toml_out.as_posix()}")
+        _logger.debug(f"Writing:\n{toml_out.as_posix()}")
         fw.write(toml_str)
 
     return toml_out
@@ -139,20 +143,20 @@ def eval_(
 
     if args.processing_mode == "convert":
 
-        result: pathlib.Path = convert_toml_to_json(
+        result: pathlib.Path = convert_toml_to_yaml(
             toml_in=args.toml_in,
-            json_out=args.json_out,
+            yaml_out=args.yaml_out,
         )
 
         _logger.info(f"{result.as_posix() = }")
 
         return result
 
-    elif args.processing_mode == "jsons-to-toml":
+    elif args.processing_mode == "yamls-to-toml":
 
-        result: pathlib.Path = jsons_to_toml(
-            root_json=args.root_json,
-            override_json=args.override_json,
+        result: pathlib.Path = yamls_to_toml(
+            root_yaml=args.root_yaml,
+            override_yaml=args.override_yaml,
             toml_out=args.toml_out,
         )
 
@@ -214,7 +218,7 @@ def parse_args(args):
     )
 
     ####################################################################################################################
-    # CONVERT TOML TO JSON
+    # CONVERT TOML TO YAML
 
     base_subparser_single_file = base_subparsers.add_parser(
         name="convert",
@@ -234,14 +238,14 @@ def parse_args(args):
     )
 
     base_subparser_single_file.add_argument(
-        "--json-out",
+        "--yaml-out",
         # "-f",
-        dest="json_out",
+        dest="yaml_out",
         required=False,
         # Todo
         #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
         help="Full path to the file to be processed.",
-        metavar="JSON_OUT",
+        metavar="YAML_OUT",
         type=pathlib.Path,
     )
 
@@ -249,34 +253,36 @@ def parse_args(args):
 
 
     ####################################################################################################################
-    # JSONS TO TOML
+    # YAMLS TO TOML
 
     base_subparser_chain_dicts = base_subparsers.add_parser(
-        name="jsons-to-toml",
+        name="yamls-to-toml",
         formatter_class=_formatter,
     )
 
     base_subparser_chain_dicts.add_argument(
-        "--root-json",
+        "--root-yaml",
         # "-f",
-        dest="root_json",
+        dest="root_yaml",
         required=True,
         # Todo
         #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
-        help="Full path to the root json.",
-        metavar="ROOT_JSON",
+        help="Full path to the root layer YAML.",
+        metavar="ROOT_YAML",
         type=pathlib.Path,
     )
 
     base_subparser_chain_dicts.add_argument(
-        "--override-json",
+        "--override-yaml",
         # "-f",
-        dest="override_json",
+        dest="override_yaml",
+        nargs="*",
         required=True,
         # Todo
         #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
-        help="Full path to the json to override the root json.",
-        metavar="OVERRIDE_JSON",
+        help="Full path(s) to the YAML(s) to override the root YAML. "
+             "The latter will take precendence over the former.",
+        metavar="OVERRIDE_YAML",
         type=pathlib.Path,
     )
 
