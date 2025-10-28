@@ -23,7 +23,7 @@ dependencies = [
     "tomli",
     "tomli-w",
     "deepdiff[cli]",
-    "docker-compose-graph @ git+https://github.com/michimussato/docker-compose-graph.git"
+    "docker-compose-graph @ git+https://github.com/michimussato/docker-compose-graph.git@v1.0.0"
 ]
 dynamic = ["version"]
 
