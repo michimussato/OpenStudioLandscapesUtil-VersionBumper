@@ -104,7 +104,9 @@ def yamls_to_toml(
     merged = reduce(deep_merge, chain.maps)
     _logger.debug(f"Merged chainmap::\n{yaml.safe_dump(merged, indent=2)}")
 
-    toml_str = tomli_w.dumps(merged)
+    merged_sorted = deep_sorted(merged)
+
+    toml_str = tomli_w.dumps(merged_sorted)
     _logger.debug(f"Converted TOML string: {toml_str}")
 
     with open(toml_out, 'w') as fw:
