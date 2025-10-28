@@ -6,7 +6,8 @@
     * [Example](#example)
       * [`convert`](#convert)
       * [`yamls-to-toml`](#yamls-to-toml)
-      * [`compare-tomls`](#compare-tomls)
+        * [Shell](#shell)
+        * [nox](#nox)
 <!-- TOC -->
 
 ---
@@ -59,12 +60,12 @@ git push -u origin main
 
 ```
 $ openstudiolandscapesutil-versionbumper --help
-usage: openstudiolandscapesutil-versionbumper [-h] [--version] [-v] [-vv] {convert,yamls-to-toml,compare-tomls} ...
+usage: openstudiolandscapesutil-versionbumper [-h] [--version] [-v] [-vv] {convert,yamls-to-toml} ...
 
 A Command Line Utility for version bumping of dependencies.
 
 positional arguments:
-  {convert,yamls-to-toml,compare-tomls}
+  {convert,yamls-to-toml}
 
 options:
   -h, --help            show this help message and exit
@@ -81,7 +82,7 @@ From `TOML` to `YAML`
 
 ```shell
 # Engine
-openstudiolandscapesutil-versionbumper convert --toml-in /home/michael/git/repos/OpenStudioLandscapes/pyproject.toml
+openstudiolandscapesutil-versionbumper convert --toml-in ~/git/repos/OpenStudioLandscapes/pyproject.toml
 ```
 
 ```shell
@@ -95,6 +96,8 @@ done
 #### `yamls-to-toml`
 
 Write layered `yaml` files (Python `ChainMap()` to `toml`
+
+##### Shell
 
 ```shell
 # Engine
@@ -124,4 +127,16 @@ for toml in */pyproject_layer.yaml; do
   popd || exit 1
 done
 popd || exit 1
+```
+
+##### nox
+
+```shell
+# Engine
+nox -s pyproject_engine
+```
+
+```shell
+# Features
+nox -s pyproject_features
 ```
