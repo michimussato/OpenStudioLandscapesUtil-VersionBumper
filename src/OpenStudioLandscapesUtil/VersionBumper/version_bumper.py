@@ -6,17 +6,18 @@ References for pyproject.toml
 """
 
 import argparse
+from pathlib import Path
+
 import yaml
 from collections import ChainMap
-from pprint import pprint
 import logging
 import pathlib
 import sys
-from typing import Union, MutableMapping
+from typing import MutableMapping
 from functools import reduce
 import tomli
 import tomli_w
-import deepdiff
+# import deepdiff
 
 from docker_compose_graph.utils import *
 from OpenStudioLandscapesUtil.VersionBumper import __version__
@@ -116,17 +117,17 @@ def yamls_to_toml(
     return toml_out
 
 
-def compare_tomls(
-        toml_1: pathlib.Path,
-        toml_2: pathlib.Path,
-):
-    with open(toml_1, "rb") as fr:
-        dict_1 = tomli.load(fr)
-
-    with open(toml_2, "rb") as fr:
-        dict_2 = tomli.load(fr)
-
-    pprint(deepdiff.DeepDiff(dict_1, dict_2))
+# def compare_tomls(
+#         toml_1: pathlib.Path,
+#         toml_2: pathlib.Path,
+# ):
+#     with open(toml_1, "rb") as fr:
+#         dict_1 = tomli.load(fr)
+#
+#     with open(toml_2, "rb") as fr:
+#         dict_2 = tomli.load(fr)
+#
+#     pprint(deepdiff.DeepDiff(dict_1, dict_2))
 
 
 # ---- CLI ----
@@ -137,7 +138,7 @@ def compare_tomls(
 
 def eval_(
         args: argparse.Namespace,
-) -> Union[pathlib.Path]:
+) -> Path | None:
 
     _logger.debug(f"{args = }")
 
@@ -164,15 +165,15 @@ def eval_(
 
         return result
 
-    elif args.processing_mode == "compare-tomls":
-
-        _logger.debug(f"{args.toml_1 = }")
-        _logger.debug(f"{args.toml_2 = }")
-
-        compare_tomls(
-            toml_1=args.toml_1,
-            toml_2=args.toml_2,
-        )
+    # elif args.processing_mode == "compare-tomls":
+    #
+    #     _logger.debug(f"{args.toml_1 = }")
+    #     _logger.debug(f"{args.toml_2 = }")
+    #
+    #     compare_tomls(
+    #         toml_1=args.toml_1,
+    #         toml_2=args.toml_2,
+    #     )
 
 
 def parse_args(args):
@@ -303,39 +304,39 @@ def parse_args(args):
     ####################################################################################################################
 
 
-    ####################################################################################################################
-    # COMPARE-TOMLS
-
-    base_subparser_compare_tomls = base_subparsers.add_parser(
-        name="compare-tomls",
-        formatter_class=_formatter,
-    )
-
-    base_subparser_compare_tomls.add_argument(
-        "--toml-1",
-        # "-f",
-        dest="toml_1",
-        required=True,
-        # Todo
-        #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
-        help="Full path to the 1st TOML.",
-        metavar="TOML_1",
-        type=pathlib.Path,
-    )
-
-    base_subparser_compare_tomls.add_argument(
-        "--toml-2",
-        # "-f",
-        dest="toml_2",
-        required=True,
-        # Todo
-        #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
-        help="Full path to the 2nd TOML.",
-        metavar="TOML_2",
-        type=pathlib.Path,
-    )
-
-    ####################################################################################################################
+    # ####################################################################################################################
+    # # COMPARE-TOMLS
+    #
+    # base_subparser_compare_tomls = base_subparsers.add_parser(
+    #     name="compare-tomls",
+    #     formatter_class=_formatter,
+    # )
+    #
+    # base_subparser_compare_tomls.add_argument(
+    #     "--toml-1",
+    #     # "-f",
+    #     dest="toml_1",
+    #     required=True,
+    #     # Todo
+    #     #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
+    #     help="Full path to the 1st TOML.",
+    #     metavar="TOML_1",
+    #     type=pathlib.Path,
+    # )
+    #
+    # base_subparser_compare_tomls.add_argument(
+    #     "--toml-2",
+    #     # "-f",
+    #     dest="toml_2",
+    #     required=True,
+    #     # Todo
+    #     #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
+    #     help="Full path to the 2nd TOML.",
+    #     metavar="TOML_2",
+    #     type=pathlib.Path,
+    # )
+    #
+    # ####################################################################################################################
 
     return main_parser.parse_args(args)
 

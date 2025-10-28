@@ -20,6 +20,23 @@ project in sync.
 This is a first attempt and far from perfect. However, aware of its current
 pitfalls, let's see to what extent it is useful in its current state.
 
+The idea is to create `pyproject.toml` files based on a layered structure:
+
+Todo: find a more appropriate name for `override` (in fact, it's an overlay).
+
+```
+# Bottom up
+-----------------
+= Resulting TOML
+-----------------
++ override-yaml-n
++ overrice-yaml-2
++ override-yaml-1
+root-layer-yaml
+```
+
+The process is always additive, never subtractive (at least for the time being).
+
 ## PyScaffold
 
 The package was created using the following `PyScaffold` command:
@@ -81,29 +98,30 @@ Write layered `yaml` files (Python `ChainMap()` to `toml`
 
 ```shell
 # Engine
+mv --backup=numbered ~/git/repos/OpenStudioLandscapes/pyproject.toml ~/git/repos/OpenStudioLandscapes/pyproject.bak.toml
+
 openstudiolandscapesutil-versionbumper yamls-to-toml \
-    --root-yaml /home/michael/git/repos/OpenStudioLandscapes/utils/pyproject/pyproject.toml__OpenStudioLandscapes-Common.yaml \
+    --root-yaml ~/git/repos/OpenStudioLandscapes/pyproject_layers/pyproject_layer_0_root.yaml \
     --override-yaml \
-        /home/michael/git/repos/OpenStudioLandscapes/utils/pyproject/pyproject.toml__OpenStudioLandscapes-Layer-Engine.yaml \
-        /home/michael/git/repos/OpenStudioLandscapes/pyproject_layer.yaml \
-    --toml-out /home/michael/git/repos/OpenStudioLandscapes/pyproject.test.toml
+        ~/git/repos/OpenStudioLandscapes/pyproject_layers/pyproject_layer_engine.yaml \
+        ~/git/repos/OpenStudioLandscapes/pyproject_layer.yaml \
+    --toml-out ~/git/repos/OpenStudioLandscapes/pyproject.toml
 ```
 
 ```shell
 # Features
-for toml in .features/*/pyproject_layer.yaml; do 
-  echo $(pwd)/${toml};
+pushd .features || exit 1
+for toml in */pyproject_layer.yaml; do
+  _toml=$(pwd)/${toml}
+  cwd=$(dirname ${_toml})
+  pushd ${cwd} || exit 1
   openstudiolandscapesutil-versionbumper yamls-to-toml \
-      --root-yaml /home/michael/git/repos/OpenStudioLandscapes/utils/pyproject/pyproject.toml__OpenStudioLandscapes-Common.yaml \
+      --root-yaml ~/git/repos/OpenStudioLandscapes/pyproject_layers/pyproject_layer_0_root.yaml \
       --override-yaml \
-          /home/michael/git/repos/OpenStudioLandscapes/utils/pyproject/pyproject.toml__OpenStudioLandscapes-Layer-Features.yaml \
-          $(pwd)/${toml} \
-      --toml-out $(dirname "$(pwd)/${toml}")/pyproject.test.toml
+          ~/git/repos/OpenStudioLandscapes/pyproject_layers/pyproject_layer_features.yaml \
+          "${_toml}" \
+      --toml-out "${cwd}/pyproject.toml"
+  popd || exit 1
 done
-```
-
-#### `compare-tomls`
-
-```shell
-openstudiolandscapesutil-versionbumper compare-tomls --toml-1 /home/michael/git/repos/OpenStudioLandscapes/pyproject.toml --toml-2 /home/michael/git/repos/OpenStudioLandscapes/pyproject2.toml
+popd || exit 1
 ```
