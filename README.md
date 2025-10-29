@@ -60,7 +60,7 @@ git push -u origin main
 
 ```
 $ openstudiolandscapesutil-versionbumper --help
-usage: openstudiolandscapesutil-versionbumper [-h] [--version] [-v] [-vv] {convert,yamls-to-toml} ...
+usage: openstudiolandscapesutil-versionbumper [-h] [--version] [-v] [-vv] [--dry-run] {convert,yamls-to-toml} ...
 
 A Command Line Utility for version bumping of dependencies.
 
@@ -72,6 +72,7 @@ options:
   --version             show program's version number and exit
   -v, --verbose         set loglevel to INFO
   -vv, --very-verbose   set loglevel to DEBUG
+  --dry-run             Just print, don't write anything.
 ```
 
 ### Example
@@ -105,7 +106,7 @@ mv --backup=numbered ~/git/repos/OpenStudioLandscapes/pyproject.toml ~/git/repos
 
 openstudiolandscapesutil-versionbumper yamls-to-toml \
     --root-yaml ~/git/repos/OpenStudioLandscapes/pyproject_layers/pyproject_layer_0_root.yaml \
-    --override-yaml \
+    --yaml-layers \
         ~/git/repos/OpenStudioLandscapes/pyproject_layers/pyproject_layer_engine.yaml \
         ~/git/repos/OpenStudioLandscapes/pyproject_layer.yaml \
     --toml-out ~/git/repos/OpenStudioLandscapes/pyproject.toml
@@ -120,7 +121,7 @@ for toml in */pyproject_layer.yaml; do
   pushd ${cwd} || exit 1
   openstudiolandscapesutil-versionbumper yamls-to-toml \
       --root-yaml ~/git/repos/OpenStudioLandscapes/pyproject_layers/pyproject_layer_0_root.yaml \
-      --override-yaml \
+      --yaml-layers \
           ~/git/repos/OpenStudioLandscapes/pyproject_layers/pyproject_layer_features.yaml \
           "${_toml}" \
       --toml-out "${cwd}/pyproject.toml"

@@ -6,6 +6,7 @@ References for pyproject.toml
 """
 
 import argparse
+import os
 from pathlib import Path
 
 import yaml
@@ -47,8 +48,9 @@ def _recursive_serializer(obj):
 
 def convert_toml_to_yaml(
         toml_in: pathlib.Path,
-        yaml_out: pathlib.Path = None,
-) -> pathlib.Path:
+        yaml_out: pathlib.Path,
+        dry_run: bool = False,
+) -> pathlib.Path | None:
 
     if yaml_out is None:
         yaml_out = toml_in.with_suffix(".yaml")
@@ -66,6 +68,10 @@ def convert_toml_to_yaml(
         sort_keys=True,
     )
 
+    if dry_run:
+        sys.stdout.write(yaml_str)
+        return None
+
     with open(yaml_out, "w") as fw:
         _logger.info(f"Writing:\n{yaml_str}")
         fw.write(yaml_str)
@@ -79,9 +85,10 @@ def convert_toml_to_yaml(
 
 def yamls_to_toml(
         root_yaml: pathlib.Path,
-        override_yaml: list[pathlib.Path],
+        yaml_layers: list[pathlib.Path],
         toml_out: pathlib.Path,
-) -> pathlib.Path:
+        dry_run: bool,
+) -> pathlib.Path | None:
 
     with open(root_yaml, "r") as fr:
         _logger.debug(f"Reading {root_yaml.as_posix()}...")
@@ -90,9 +97,11 @@ def yamls_to_toml(
 
     dicts = []
 
-    for f in reversed(override_yaml):
+    for f in reversed(yaml_layers):
         with open(f, "r") as fr:
             _logger.debug(f"Reading {f.as_posix()}...")
+            # Todo
+            #  - [ ] `safe_load_all()`? -> https://stackoverflow.com/a/70674374/2207196
             override_dict = yaml.safe_load(stream=fr)
             _logger.debug(f"Loaded {override_dict}")
             dicts.append(override_dict)
@@ -103,12 +112,17 @@ def yamls_to_toml(
     )
 
     merged = reduce(deep_merge, chain.maps)
-    _logger.debug(f"Merged chainmap::\n{yaml.safe_dump(merged, indent=2)}")
+    _logger.debug(f"Merged chainmap:\n{yaml.safe_dump(merged, indent=2)}")
 
     merged_sorted = deep_sorted(merged)
+    _logger.debug(f"Merged and sorted chainmap:\n{yaml.safe_dump(merged_sorted, indent=2)}")
 
     toml_str = tomli_w.dumps(merged_sorted)
     _logger.debug(f"Converted TOML string: {toml_str}")
+
+    if dry_run:
+        sys.stdout.write(toml_str.format(**os.environ))
+        return None
 
     with open(toml_out, 'w') as fw:
         _logger.debug(f"Writing:\n{toml_out.as_posix()}")
@@ -149,6 +163,7 @@ def eval_(
         result: pathlib.Path = convert_toml_to_yaml(
             toml_in=args.toml_in,
             yaml_out=args.yaml_out,
+            dry_run=args.dry_run,
         )
 
         _logger.info(f"{result.as_posix() = }")
@@ -159,8 +174,9 @@ def eval_(
 
         result: pathlib.Path = yamls_to_toml(
             root_yaml=args.root_yaml,
-            override_yaml=args.override_yaml,
+            yaml_layers=args.yaml_layers,
             toml_out=args.toml_out,
+            dry_run=args.dry_run,
         )
 
         return result
@@ -216,6 +232,15 @@ def parse_args(args):
         const=logging.DEBUG,
     )
 
+    main_parser.add_argument(
+        "--dry-run",
+        dest="dry_run",
+        action="store_true",
+        required=False,
+        default=False,
+        help="Just print, don't write anything.",
+    )
+
     base_subparsers = main_parser.add_subparsers(
         dest="processing_mode",
     )
@@ -245,6 +270,7 @@ def parse_args(args):
         # "-f",
         dest="yaml_out",
         required=False,
+        default=None,
         # Todo
         #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
         help="Full path to the file to be processed.",
@@ -276,16 +302,16 @@ def parse_args(args):
     )
 
     base_subparser_chain_dicts.add_argument(
-        "--override-yaml",
+        "--yaml-layers",
         # "-f",
-        dest="override_yaml",
+        dest="yaml_layers",
         nargs="*",
         required=True,
         # Todo
         #  - [ ] default=pathlib.Path().cwd().joinpath(_HARBOR_DOWNLOAD_DIR, "harbor-*.tgz"),
-        help="Full path(s) to the YAML(s) to override the root YAML. "
+        help="Full path(s) to the YAML layer(s). "
              "The latter will take precendence over the former.",
-        metavar="OVERRIDE_YAML",
+        metavar="YAML_LAYERS",
         type=pathlib.Path,
     )
 
