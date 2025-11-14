@@ -141,3 +141,9 @@ nox -s pyproject_engine
 # Features
 nox -s pyproject_features
 ```
+
+Both:
+```shell
+# Features
+nox -s pyproject_engine pyproject_features
+```
