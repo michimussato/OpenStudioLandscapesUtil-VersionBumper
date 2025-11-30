@@ -95,7 +95,7 @@ def yamls_to_toml(
         root_dict = yaml.safe_load(stream=fr)
         _logger.debug(f"Loaded {root_dict}")
 
-    dicts = []
+    dicts_ = []
 
     for f in reversed(yaml_layers):
         with open(f, "r") as fr:
@@ -104,7 +104,11 @@ def yamls_to_toml(
             #  - [ ] `safe_load_all()`? -> https://stackoverflow.com/a/70674374/2207196
             override_dict = yaml.safe_load(stream=fr)
             _logger.debug(f"Loaded {override_dict}")
-            dicts.append(override_dict)
+            dicts_.append(override_dict)
+
+    # remove all falsy elements
+    # https://www.geeksforgeeks.org/python/remove-falsy-values-from-a-list-in-python/
+    dicts = list(filter(None, dicts_))
 
     chain = ChainMap(
         *dicts,
